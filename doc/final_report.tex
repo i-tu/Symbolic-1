@@ -1,0 +1,281 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[finnish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{verbatim}
+\usepackage{url}
+\usepackage{hyperref}
+\pagenumbering{arabic}
+\author{Petteri Hyvärinen, 67316W, ohyvarin@cc.hut.fi\\Ian Tuomi, 79304V, ituomi@cc.hut.fi\\Toni Rossi, 78731S, torossi@cc.hut.fi}
+\title{AS-0.3301 - projektidokumentti \\ \textbf{Aihe - \textit{Symbolic calculator}}}
+
+\begin{document}
+\lstset{
+language=C++,                           % Code langugage
+basicstyle=\ttfamily,                   % Code font, Examples: \footnotesize, \ttfamily
+keywordstyle=\color{OliveGreen},        % Keywords font ('*' = uppercase)
+%commentstyle=\color{gray},              % Comments font
+numbers=left,                           % Line nums position
+numberstyle=\tiny,                      % Line-numbers fonts
+stepnumber=1,                           % Step between two line-numbers
+numbersep=5pt,                          % How far are line-numbers from code
+%backgroundcolor=\color{lightlightgray}, % Choose background color
+frame=single,                             % A frame around the code
+tabsize=2,                              % Default tab size
+captionpos=b,                           % Caption-position = bottom
+breaklines=true,                        % Automatic line breaking?
+breakatwhitespace=false,                % Automatic breaks only at whitespace?
+showspaces=false,                       % Dont make spaces visible
+showtabs=false,                         % Dont make tabls visible
+columns=flexible,                       % Column format
+%morekeywords={__global__, __device__},  % CUDA specific keywords
+}
+
+\maketitle
+
+\begin{abstract}
+Tämä dokumentti kuvaa ryhmän \texttt{symbolic-1} toteutuksen symbolisesta laskimesta.
+Laskinta käytetään komentorivipohjaisella käyttöliittymällä, jolle annetaan syötteenä
+matemaattisia lausekkeita, jotka laskin pyrkii sieventämään.
+\end{abstract}
+
+\section{Ohjeita ohjelman kääntämiseen ja suorittamiseen}
+
+\subsection{Kääntäminen}
+Ohjelman kääntäminen tapahtuu projektin hakemistossa komentoriviä käyttäen seuraavalla tavalla:
+
+\begin{lstlisting}[language=bash]
+kosh symbolic1 1048 % cd src
+kosh src 1049 % make
+\end{lstlisting}
+Komento \lstinline[language=bash]!make! kääntää ohjelman ja luo kansioon suoritettavan tiedoston
+\texttt{calculator}.
+
+\subsection{Ohjelman käyttö}
+Kääntämisen jälkeen \texttt{src}-alihakemistossa on suoritettava tiedosto \texttt{calculator},
+jonka suorittaminen käynnistää ohjelman komentorivin:
+\begin{lstlisting}[language=bash]
+kosh src 1057 % ./symbolic
+
+Welcome to Symbolic-1!
+Type "help" for help.
+
+>>
+\end{lstlisting}
+Ohjelmaa käytetään komentorivin kautta. Käytössä ovat seuraavat komennot (listauksen saa
+komentorivin komennolla \texttt{commands}):
+\begin{lstlisting}[language=bash]
+>> commands
+
+Commands
+--------
+
+    who           Displays list of defined functions and variables
+    clear         Clears defined functions and variables
+    simple        Toggles autosimplify (default: on)
+    prefix        Turns prefix mode on
+    infix         Turns infix mode on (default)
+    help          Displays help
+    commands      Displays this list
+    exit/bye      Ends program
+
+\end{lstlisting}
+
+
+
+
+\subsection{Syntaksi}
+Sievennettävät lausekkeet syötetään komentoriville ja ohjelma sieventää syötteen automaattisesti, ellei
+automaattista sievennystä ole asetettu pois päältä komennolla \texttt{simple}. Lausekkeen voi halutessaan
+tallettaa funktioksi komentorivin muistiin, esimerkiksi seuraavilla tavoilla:
+\begin{lstlisting}[language=bash]
+    >> f[x,y] = x^2+y^3+x
+    >> h[m]=f[m^2,m^3+2]	# sieventyy ((8+m+m^2)^m)^3+2
+    >> aleph = h[3]			# sieventyy ((8+3+3^2)^3)^3+2 -> 5.12e+11
+    >> aleph				# sieventyy 5.12e+11
+\end{lstlisting}
+Jos lauseketta ei tallenneta funktioksi, se tallentuu automaattisesti \texttt{ans}-nimiseksi funktioksi.
+Funktion \texttt{ans} arvo korvautuu uudella funktiolla siten, että vain viimeisin lauseke on muistissa.
+Jos lausekkeessa esiintyy muita symboleja kuin aikaisemmin tallennettujen funktioiden tunnisteita,
+ne tulkitaan muuttujiksi. Yhtäsuuruusmerkkiä täytyy edeltää syötteen aloittava nimi ja mahdolliset funktion muuttujamäärittelyt, esim. \lstinline!f[x,y]!. Jos määrittelyitä ei ole tehty, tehdään ne implisiittisesti aakkosjärjestyksessä. (esim. \lstinline!f[x,y] = x+y! vastaa määrittelyä \lstinline!f = x + y!) Nimissä ovat sallittuja vain suuret ja pienet kirjaimet. Esim. ''Function2'' ei ole sallittu nimi mutta ''FunctionTwo'' olisi. Yhtäsuuruusmerkkiä täytyy seurata funktio. (esim. \lstinline!munFunktio = x^2 + x^3 + sin x!). Myös funktion evaluiointi tapahtuu hakasulkeiden avulla. Jos lauseke, joka sisältää muuttujia, tallennetaan funktioksi, saatu funktio voidaan evaluioida halutussa pisteessä kutsumalla funktiota parametrilistalla.  Parametrien arvot voivat olla mitä tahansa laillisia syötteitä, esimerkiksi lukuja, symboleita tai funktioita, esimerkiksi \lstinline!f[7]! toimii odotetulla tavalla ja \lstinline!f[x^2]! korvaa \lstinline!x!:n funktiolla \lstinline!x^2!. 
+
+Ohjelma hyväksyy oikeanpuoleiselle funktiolle syötteeksi Lispistä tuttua prefix- notaatiota tai perinteistä infix-notaatiota. Alussa ohjelma tulkitsee syötteen infix-syötteeksi mutta kirjoittamalla \lstinline!prefix! vaihtaa ohjelma syöteodotettaan. Vastaavasti \lstinline!infix! vaihtaa takaisin ''perinteiseen'' notaatioon. Infix-notaatio muunnetaan prefix-notaatioksi käyttäen mukailtua Djikstran ''Shunting Yard''-algoritmia. Prefix-notaatiota ei käsitellä sen syvällisemmin, siitä vain poistetaan sulut. 
+
+
+\section{Ohjelman rakenne}
+\label{sec:ohjelman_rakenne}
+Käsittelemme kaikkia syötteitä matemaattisina funktioina, joten kaikki luokat periytyvät abstraktista
+luokasta Function. Matemaattisen syötteen tulkitseminen funktioina ja funktioiden yhdistelminä on
+teoreettisesti perusteltua ja sopii hyvin olio-ohjelmoinnin periaatteiden kanssa lähtien liikkeelle
+yleisestä mallista, tarkentuen eri ilmiöihin alemmilla tasoilla. Algebralliset funktiot pitävät
+erikoistapauksina sisällään mm. vakiofunktiot \lstinline!f(x) = c!, identiteettikuvauksen
+\lstinline!f(x) = x! ja lisäksi
+polynomit ja juurifunktiot. Myös yksinkertaiset aritmeettiset operaatiot voidaan nähdä funktioina,
+esimerkiksi \lstinline!f(x) = x + c, g(x, y) = x*y! jne.
+
+Luokkarakenne on kuvattu UML-kaaviolla liitteessä \ref{app:luokkarakenne}. Periaatteena on ollut
+jaotella operaatiot ensin pariteetin mukaan ja sen jälkeen periyttää eri laskutoimitusten
+toteutukset omiin luokkiinsa. Luokkarakenne on suunniteltu siten, että jokainen funktio-olio
+sisältää paitsi kuvaamansa operaation toteutuksen, myös osoittimen tai osoittimia operandeihinsa.
+Näin funktio-oliot yhdessä muodostavat puurakenteen, jonka solmuina ovat operaatiot ja lehtinä
+nullaariset operandit - muuttujat tai luvut.
+Ohjelma tulkitsee käyttäjän syötteen ja rakentaa lausekkeen mukaisen
+puun funktioista. Sievennykset sekä lausekkeen evaluointi tapahtuu rekursiivisesti käymällä läpi
+koko funktiopuu.
+Suurin osa toteutetuista operaatioista on binäärisiä, eli niillä on kaksi operandia. Toteuttamamme
+luokkarakenne antaa kuitenkin mahdollisuuden laajentaa toiminnallisuutta myös useampioperandisiin
+operaatioihin.
+
+\subsection{Funktio-luokat}
+Tässä osassa kuvaillaan \lstinline!Function!-luokasta periytyvät luokat, jotka matemaattisen lausekkeen eri alkioita, kuten vakioita, muuttujia tai laskuoperaatioita. Tarkemmat kuvaukset luokkien toiminnasta löytyvät luvusta \ref{sec:trak}.
+Jokaisella laskuoperaatiota vastaavalla luokalla on omat .hh ja .cc tiedostonsa, jotka löytyvät
+\texttt{src}-alihakemistosta. Tämän lisäksi hakemistosta löytyvät käyttöliittymän toteutus tiedostossa
+\texttt{main.cc} sekä syötteen tulkinnan toteutus tiedostossa \texttt{parser.cc}.
+
+\subsubsection{Abstraktit yläluokat}
+Funktio-luokkahierarkian juuressa on luokka \lstinline!Function!, joka kuvaa mielivaltaista matemaattisen lausekkeen alkiota. Kaikki operaatiot ja alkiot perivät tämän luokan. \lstinline!Function!-luokalla on yksi private-jäsen, joka on \lstinline!std::set<Variable>!-tyyppinen kokoelma. Tämä kokoelma kuvaa muuttujia, joita kyseisellä funktiolla on. \lstinline!Function!-luokassa on määritelty useita virtuaalisia jäsenfunktioita, jotka näin ollen periytyvät luokkahierarkiassa. Näihin kuuluvat mm. \lstinline!simplify()!, joka palauttaa uuden, sievennetyn funktiopuun, \lstinline!evaluate(std::map<Variable, Function*>)!, joka palauttaa uuden funktiopuun, jossa muuttujien arvot on määrätty parametrina saatavassa map:issa. Näiden funktioiden toimintaa kuvataan luvussa \ref{sec:trak}. Kaiken kaikkiaan luokalla on seuraavat jäsenfunktiot:
+\begin{lstlisting}
+Function()
+Function(Variable variable)
+Function(std::set<Variable> variables)
+Function(const Function& other)
+virtual ~Function()
+virtual Function* simplify() const 
+virtual Function* evaluate(std::map<Variable, Function*> parameters) const
+virtual std::set<Variable> getVariables() const
+virtual Function* clone() const
+virtual std::string print() const
+virtual Function* derive(const std::string) const
+virtual int getFunctionType() const
+virtual bool isFunctionType(int x) const
+Function* simplifyTree() const
+\end{lstlisting}
+Edellä mainittujen \lstinline!simplify()! ja \lstinline!evaluate(...)!-funktioiden lisäksi jokaisella \lstinline!Function!-luokan perivällä luokalla on siis konstruktoreiden lisäksi jäsenfunktiot \lstinline!getVariables!, joka palauttaa funktion muuttujat, \lstinline!clone()!, joka palauttaa kopion ko. funktiosta, \lstinline!print()!, joka palauttaa funktion merkkijonoesityksen, \lstinline!derive(const std::string)!, joka palauttaa funktion derivaatan parametrina saadun muuttujan mukaan. Funktioita \lstinline!getFunctionType()! ja \lstinline!isFunctionType(int)! käytetään funktio-olion tyypin määrittämiseen esimerkiksi sievennettäessä funktiopuuta. Eri funktiotyypeille on määritelty tiedostossa \texttt{function.hh} kokonaislukuarvot siten, että esimerkiksi muuttuja-tyyppinen funktio-olio palauttaa \lstinline!getFunctionType()!-funktiota kutsuttaessa kokonaisluvun 1.
+
+
+\lstinline!NaryOperation! on abstrakti luokka, joka kuvaa n-ariteettista operaatiota. Sillä on protected-jäsenenään
+\lstinline!std::vector<Function*>!-tyyppinen, \lstinline!_operands!-niminen kokoelma, joka sisältää luokan kuvaaman operaation operandeja. Operandeja voi tarkastella erikseen kutsumalla \lstinline!getOperands()!-jäsenfunktiota, joka palauttaa kopion em. kokoelmasta.
+
+\lstinline!NullaryOperation, UnaryOperation! sekä \lstinline!BinaryOperation! perivät \lstinline!NaryOperation!-luokan, ja kuvaavat nimiensä mukaisesti operaatioita, joiden ariteetit ovat vastaavasti 0, 1 sekä 2.
+Nämä luokat säilyttävät operandejaan \lstinline!NaryOperation!-luokalta perimässään \lstinline!_operands!-vektorissa, jonka ne jokainen alustavat itselleen sopivan kokoiseksi. \lstinline!BinaryOperation!-luokkaan on lisätty jäsenfunktiot \lstinline!getRhs(), setRhs(Function*), getLhs(), setLhs(Function*)!, helpottamaan operandien käsittelyä vektorin käsittelyn sijasta.
+
+Edellä esitellyt luokat ovat kaikki määritelty tiedostossa \texttt{function.cc/hh}.
+
+\subsubsection{Vakiot}
+Vakiot ovat lukuarvoja lausekkeessa. Vakiolla on private-jäsenenään \lstinline!Rational!-luokan olio.
+Näin ollen vakiot voivat olla mielivaltaisia murtolukuja.
+Vakioiden luokka on \lstinline!Constant!, joka on määritelty tiedostoissa \texttt{constant.cc/hh}.
+Vakio-oliolla ei ole ainuttakaan operandia, joten se perii \lstinline!NullaryOperation!-luokan.
+
+\subsubsection{Muuttujat}
+Muuttujat ovat symboleja, jotka kuvaavat muuttuvaa arvoa lausekkeessa. Lausekkeessa esiintyvä muuttuja
+voidaan funktiossa korvata millä tahansa arvolla. Muuttujien luokka on \lstinline!Variable!, joka on määritelty tiedostoissa \texttt{variable.cc/hh}. Myöskään muuttujalla ei ole ainuttakaan operandia, joten sekin perii \lstinline!NullaryOperation!-luokan. Muuttujilla on private-jäseninään \lstinline!std::string!-tyyppiset kentät \lstinline!_symbol! sekä \lstinline!_namespace!, joista ensimmäinen kertoo muuttujan symbolin funktiossa ja jälkimmäinen nimiavaruuden, jossa muuttuja on määritelty. Tällä järjestelyllä pyritään välttämään eri funktioissa määriteltyjen muuttujanimien törmäykset.
+Nimiavaruus määräytyy sen funktion mukaan, jossa muuttuja on määritelty.
+
+\subsubsection{Yhteenlasku, kertolasku, jakolasku sekä potenssi}
+Yhteenlasku, kertolasku, jakolasku sekä potenssi ovat binäärisiä operaatioita, joten niitä kuvaavat luokat \lstinline!Sum, Multiplication, Division! sekä \lstinline!Power! perivät luokan \lstinline!BinaryOperation!. Luokat on toteutettu tiedostoissa \texttt{sum.cc/hh, multiplication.cc/hh, division.cc/hh} sekä \texttt{power.cc/hh}.
+Kaikissa operaatioissa operandit voivat olla mitä tahansa \lstinline!Function!-luokan periviä olioita.
+
+
+\subsubsection{Negaatio}
+Negaatio on unaarinen operaatio, joka muuttaa operandinaan olevan funktion etumerkin. Luokka \lstinline!Neg! on määritelty tiedostossa \texttt{neg.cc/hh} ja se perii luokan \lstinline!UnaryOperation!.
+
+\subsection{Apuluokat}
+Tässä osassa kuvaillaan funktiorakenteen ulkopuoliset luokat, joiden tarkoituksena on helpottaa funktio-olioiden käsittelyä.
+
+\subsubsection{Rationaaliluvut}
+Rationaalilukuja kuvaa luokka \lstinline{Rational}, joka on toteutettu tiedostoissa \texttt{rational.cc/hh}.
+Luokkassa on toteutettu kaikki peruslaskutoimitukset rationaaliluvuille. Rationaalilukuja käytetään vakioiden yhteydessä.
+
+\subsubsection{Polynomit}
+Polynomien käsittelyä varten tehtiin omat luokkansa \lstinline!Polynomial! ja \lstinline!Term!, joiden toteutus on tiedostoissa \texttt{polynomial.cc/hh}. Luokka \lstinline!Term! kuvaa polynomitermiä, ja luokka \lstinline!Polynomial! kokonaista polynomia, joka koostuu vektorista \lstinline!Term!-olioita. Luokka on erillinen funktiorakenteesta, sillä sen tarkoitus on olla apuluokkana sievennyksessä. \lstinline!Polynomial!-olio voidaan luoda joko funktiopuusta, \lstinline!Term!-vektorista tai ottamalla kopio toisesta polynomioliosta. Luokalla on myös parametriton konstruktori, joka luo tyhjän polynomin.
+
+
+
+\section{Tietorakenteet ja algoritmit}	\label{sec:trak}
+Kuten luvussa \ref{sec:ohjelman_rakenne} todettiin, lausekkeen alkiot tulkitaan funktioiksi,
+jotka yhdessä muodostava puurakenteen.
+
+\subsection{Sievennys ja evaluointi}
+Funktioiden toteutukset ovat käytännössä jäsenfunktiossa \lstinline!simplify()!, joka palauttaa
+yksinkertaisimman mahdollisen version lausekkeesta. Jos funktio ei löydä itsestään sievempää versiota, palauttaa se oman osoitteensa, jolloin onnistuneen sievennyksen onnistuminen on helppo todentaa.
+
+Sievennettäessä kokonaista funktiopuuta kutsutaan funktiota \lstinline!simplifyTree!, joka kutsuu puun pään \lstinline!simplify!-funktiota yhä uudestaan kunnes se palauttaa oman osoitteensa. Jos laskutoimitus ei sievene välittömien lastensa suhteen, kutsutaan lasten vastaavia \lstinline!simplify!-funktioita. Näin puu voidaan iteroida pohjia myöten läpi. Huomionarvoista on, että puu palautuu \lstinline!simplifyTree!-funktiolle välittömästi jokaisen onnistuneen sievennyksen jälkeen.
+
+Funktiota evaluotaessa, muuttujat
+korvataan parametrien arvoilla (ks. \ref{sec:muuttujat}), ja näin saatu puu jälleen sievennetään.
+
+\subsubsection{Vakiot}
+Yksinkertaisimmat funktio-oliot ovat vakioita, jotka ovat jo itsessään yksinkertaisimmassa muodossaan. Niinpä
+kutsuttaessa vakion \lstinline!simplify()!-jäsenfunktiota, paluuarvona saadaan vakio itse.
+Samoin jäsenfunktio \lstinline!evaluate(std::map<Variable, Function*>)! palauttaa yksinkertaisesti
+kopion itsestään.
+
+\subsubsection{Muuttujat} \label{sec:muuttujat}
+Muuttujien kanssa toimitaan samaan tyyliin, sillä erolla, että funktiota evaluoitaessa
+lausekkeesta löytyvä muuttuja korvataan \lstinline!evaluate(std::map<Variable, Function*>)!-funktiossa
+parametrina saatavasta map:ista etsittävällä arvolla. Funktiossa katsotaan, onko parametrina saadussa map:issa jäsentä, jonka key se itse olisi. Jos näin on, funktio palauttaa tätä key:tä vastaavan arvon, joka on \lstinline!Function!-tyyppinen osoitin. Tämä osoitin vastaa komentorivillä annettua parametriä, esimerkiksi tapauksessa, jossa funktio \lstinline!f[x] = x! evaluoidaan arvolla \lstinline!x = a+2*a! -- jolloin komentorivin syöte olisi \lstinline!f[a + 2*a]! -- korvattaisiin muuttuja \lstinline!x! funktiolla \lstinline!'+'!, jonka operandeina olisivat edelleen \lstinline!a! ja \lstinline!2*a!. Tämän jälkeen näin saatu uusi funktiopuu voitaisiin sieventää ja saada tulos \lstinline!3*a!.
+
+\subsubsection{Yhteenlasku, kertolasku, jakolasku sekä potenssi}
+Näiden operaatioiden sieventäminen tapahtuu niin ikään \lstinline!simplify()!-jäsenfunktiossa. 
+Kutsuttaessa kyseistä jäsenfunktiota, kukin funktio-olio luo operandeistaan sievennetyt versiot kutsumalla niiden omia \lstinline!simplify()!-funktioita. Tämän jälkeen funktio-olio tarkastelee operandejaan ja selvittää niiden tyypin, jonka jälkeen se etsii mahdollista sievempää muotoa.
+
+Esimerkiksi tilanteessa, jossa sievennettävä lauseke on \lstinline!1 + x + 2!, muodostetaan puu, jonka juuressa on \lstinline!Sum!-tyyppinen funktio-olio operandeinaan vakio sekä toinen \lstinline!Sum!-olio. Kun tätä lauseketta lähdetään sieventämään, juuren summafunktio kutsuu kummankin operandin \lstinline!simplify()!-funktioita ja saa takaisin vakion 1 sekä summa-olion, sillä yhteenlasku \lstinline!1 + x! ei sievene. Tämän jälkeen algoritmi käy puuta läpi niin kauan kuin puussa on peräkkäisiä summia ja yrittää aina laskea yhteen kahta summalausekkeen jäsentä. Tässä tapauksessa yhteenlasku onnistuu kun \lstinline!1 + 1! palauttaa vakion \lstinline!2!. Tämän jälkeen puu ei enää sievene, joten tulos on \lstinline!2 + x!. \lstinline!simplify()!-funktio tekee myös sulkujen auki laskemista ja näin helpottaa omaa työtään. Esimerkiksi jos summa-oliolla on operandeinaan kaksi summa-oliota, sievennysalgoritmi muokkaa puuta siten, että sen oikeanpuoleinen operandi on jotain muuta kuin summa, käytännössä muuttaen lausekkeen \lstinline!(a + b) + (c + d)! muotoon \lstinline!(((a + b) + c) + d)!.
+
+Polynomien jakolaskussa käytetään jakokulma-algoritmia. \cite[s. 9]{Lutes04}
+
+\lstinline!simplify()! ja \lstinline!evaluate(...)! palauttavat aina uuden funktio-olion ja näin ollen kutsuttaessa kyseisiä jäsenfunktioita funktiopuun juurelle, paluuarvona on kokonainen uusi funktiopuu.
+
+\section{Tiedossa olevat bugit}
+Funktion evaluoinnin tulisi toimia myös käyttöliittymään tallennetuilla funktioilla, esimerkiksi seuraava syöte:
+\begin{lstlisting}
+f[x] = x^2
+g[y] = y
+f[g[2]]  # should return 4
+\end{lstlisting}
+Tämä ei kuitenkaan onnistu, vaan käyttöliittymä antaa virheilmoituksen \texttt{Error: Mismatched parameter call!}.
+
+Negatiiviset luvut toimivat ainoastaan vakioille, eli muuttujien tai funktioiden vähennyslaskut/negaatiot eivät onnistu.
+
+Viimeisin tulos tallentuu \lstinline!ans!-nimiseksi funktioksi, mutta sitä ei enää voi käyttää uuden funktion määrittelyssä, esimerkiksi \lstinline!ans + 3! palauttaa vain \lstinline!'(ans + 3)'!.
+
+Polynomien jakolasku toimii ainoastaan, jos tuloksessa ei ole jakojäännöstä, ts. vain kun jako menee tasan.
+Joissain tapauksissa polynomin jakolasku voi aiheuttaa \lstinline!std::logic_error!-poikkeuksen, jota ei käsitellä, johtaen ohjelman kaatumiseen.
+
+\section{Tehtävien jako ja aikataulutus}
+Tehtävät jakautuivat ryhmän kesken suhteellisen tasaisesti, vaikkakin jäsenten aktiiviset kaudet sijoittuivatkin ajallisesti työn eri vaiheisiin. Aikataulu jäi projektin alkuvaiheessa huomattavasti jälkeen, joka kostautui luonnollisesti lopussa. Erityisesti luokkarakenteen asettamat mahdollisuudet kääntyivät haasteiksi ja lopulta rasitteeksi kun aikataulu alkoi painaa päälle. Ryhmän olisi selvästi pitänyt käyttää enemmän aikaa luokkarakenteen ja algoritmien suunnitteluun yhdessä projektin alkuvaiheessa, jotta jokaisen jäsenen itsenäisesti tehdystä työstä olisi saatu paras mahdollinen tulos. Nyt aikaa ja vaivaa kului tarpeettomasti asioiden tekemiseen kahteen kertaan. Toisaalta ryhmän sisäisen viestinnän puutteellisuus johti alkuvaiheessa siihen että jäsenten kesken ilmeni epävarmuutta siitä, minkä osan tulisi olla tehtynä jotta toista voidaan aloittaa. Käytännössä kävi jotakuinkin niin, että parseria ei oltu tehty, sillä luokkarakenne ei ollut valmis eikä parseri näin ollen voinut luoda valmista funktiopuuta. Toisaalta käyttöliittymää ei tehty sillä ilman toimivaa parseria ei ollut paljoa tehtävissä. Luokkarakenne taas oli niin laaja kokonaisuus, ettei sitä voitu saada edes yksinkertaisimpaan muotoonsa muiden osien vaatimassa aikataulussa.
+
+Ryhmän jäsenet käyttivät aikaa seuraavasti:
+\begin{itemize}
+	\item Petteri Hyvärinen, 50 tuntia
+	\item Toni Rossi, 40 tuntia
+	\item Ian Tuomi, 60 tuntia
+\end{itemize}
+
+
+
+\section{Eroavaisuudet alkuperäiseen suunnitelmaan}
+Laskuoperaatioiden toteutukset tehtiin alkuperäisestä suunnitelmasta poiketen kokonaan \lstinline!simplify()!-jäsenfunktioihin. Lisäksi funktioiden tyypin tunnistamista varten tehtiin yksinkertainen järjestelmä, jossa jokaista funktiotyyppiä vastaa oma kokonaislukunsa.
+
+Alkuperäisestä suunnitelmasta puuttuivat myös täysin muuttujat, joita varten tehtiin oma luokkansa. Tässä luokassa otettiin huomioon myös luvussa \ref{sec:ohjelman_rakenne} mainittu muuttujien nimien törmäysten estäminen.
+
+Alkuperäisessä suunnitelmassa esiintyviä lisäominaisuuksia ei saatu derivoinnin lisäksi tehdyksi.
+
+\appendix
+\section{Luokkarakenne}
+\label{app:luokkarakenne}
+\includegraphics[angle=90, width=1.2\textwidth]{class_diagram.png}
+
+\begin{thebibliography}{9}
+\bibitem{Lutes04}
+	Lamport, Leslie,
+	\emph{A Survey of Gröbner Bases and Their Applications},
+	saatavissa \url{http://www.math.ttu.edu/~ljuan/report.pdf}
+\end{thebibliography}
+
+\end{document}
